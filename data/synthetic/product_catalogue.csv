@@ -1,0 +1,11 @@
+product_id,category,product_name,description,unit,material_price,labour_price,waste_factor,gst_rate,active
+CLD001,Cladding,Standard Aluminium Cladding,Standard aluminium wall cladding system,m2,85.00,45.00,0.10,0.10,True
+CLD002,Cladding,Premium Aluminium Cladding,Premium aluminium architectural cladding,m2,125.00,55.00,0.10,0.10,True
+INS001,Insulation,50mm Insulation Board,50mm thermal insulation board,m2,22.00,12.00,0.05,0.10,True
+INS002,Insulation,100mm Insulation Board,100mm thermal insulation board,m2,35.00,15.00,0.05,0.10,True
+TRM001,Trim,Aluminium Corner Trim,External aluminium corner finishing trim,m,14.00,8.00,0.05,0.10,True
+TRM002,Trim,Aluminium Edge Trim,Aluminium edge finishing trim,m,12.00,7.00,0.05,0.10,True
+FIX001,Fixing,Standard Fixing Set,Screws anchors and standard fixing materials,m2,8.00,5.00,0.05,0.10,True
+SEA001,Sealant,Construction Sealant,Weather resistant construction joint sealant,item,11.00,4.00,0.05,0.10,True
+FLA001,Flashing,Aluminium Flashing,Custom aluminium weather flashing,m,18.00,10.00,0.10,0.10,True
+ACC001,Accessory,Ventilation Profile,Cladding ventilation profile,m,16.00,9.00,0.05,0.10,True
