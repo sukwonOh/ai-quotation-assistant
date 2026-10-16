@@ -9,7 +9,7 @@ venv/
 
 # Environment variables / API keys
 .env
-
+__pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
