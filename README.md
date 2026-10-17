@@ -6,6 +6,30 @@ Built with **Python, Google Gemini, Pydantic, pandas, Streamlit, and ReportLab**
 
 > **Project status:** Portfolio MVP / demonstration. Uses a synthetic product catalogue. Not intended for unattended production quoting or customer delivery without further validation.
 
+
+## Live Demo
+
+The AI Quotation Assistant is deployed on Streamlit
+Community Cloud.
+
+**[Open the Streamlit Demo](https://ai-quotation-assistant-r7zf84qw8sdbpw47t3fqwh.streamlit.app/)**
+
+The demonstration currently has restricted access.
+Invited viewers must sign in and enter the demo password.
+
+### Demo Capabilities
+
+- Extract structured customer enquiries using Google Gemini
+- Validate product quantities and safety conditions
+- Match products with a synthetic construction catalogue
+- Generate deterministic quotations with Australian GST
+- Review and approve quotations before export
+- Download approved quotations as JSON or PDF
+
+**Note:** This application is a portfolio prototype.
+Prices are synthetic and should not be used for real
+construction quotations.
+
 ## Features
 
 - **LLM-based extraction:** Extract customer details, project information, product descriptions, quantities, units, and notes from an enquiry using Google Gemini and a Pydantic schema.
@@ -14,7 +38,7 @@ Built with **Python, Google Gemini, Pydantic, pandas, Streamlit, and ReportLab**
 - **Safety checks:** Block missing or invalid quantities, unknown products, and unsupported units; hold enquiries with approximate quantities; flag installation scope for review.
 - **Human approval:** Require a named reviewer and explicit confirmation before approved export.
 - **Exports:** Download approved quotations as JSON or PDF, including review details and approval timestamp.
-- **Automated tests:** A `unittest` suite covering pricing, safety validation, pipeline blocking, PDF export,and Gemini evaluation (32 tests passing as of 17 October 2026).
+- **Automated tests:** A `unittest` suite covering pricing, safety validation, pipeline blocking, PDF export, and Gemini evaluation (32 tests passing as of 17 October 2026).
 
 ## Workflow
 
