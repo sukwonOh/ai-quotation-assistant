@@ -1,0 +1,76 @@
+
+[
+  {
+    "id": "residential_multi_item",
+    "text": "Hi, I'm Jamie from Example Renovations. Our project is in Chatswood. We need 75 m2 of Premium Aluminium Cladding and 75 m2 of 100mm Insulation Board.",
+    "expected_name": "Jamie",
+    "expected_location": "Chatswood",
+    "expected_items": [
+      {
+        "description": "Premium Aluminium Cladding",
+        "quantity": 75.0
+      },
+      {
+        "description": "100mm Insulation Board",
+        "quantity": 75.0
+      }
+    ],
+    "expected_safety_status": "DRAFT"
+  },
+  {
+    "id": "informal_sqm",
+    "text": "Hey mate, I'm Taylor. Got a job in Ryde. Can you price 45 square metres of Standard Aluminium Cladding? Cheers.",
+    "expected_name": "Taylor",
+    "expected_location": "Ryde",
+    "expected_items": [
+      {
+        "description": "Standard Aluminium Cladding",
+        "quantity": 45.0
+      }
+    ],
+    "expected_safety_status": "DRAFT"
+  },
+  {
+    "id": "unknown_product",
+    "text": "Hi, my name is Priya. We need 30 m2 of Timber Cladding for a project in Parramatta.",
+    "expected_name": "Priya",
+    "expected_location": "Parramatta",
+    "expected_items": [
+      {
+        "description": "Timber Cladding",
+        "quantity": 30.0
+      }
+    ],
+    "expected_safety_status": "BLOCK"
+  },
+  {
+    "id": "missing_customer_name",
+    "text": "Could you quote 90 m2 of 50mm Insulation Board for a project in North Sydney?",
+    "expected_name": null,
+    "expected_location": "North Sydney",
+    "expected_items": [
+      {
+        "description": "50mm Insulation Board",
+        "quantity": 90.0
+      }
+    ],
+    "expected_safety_status": "DRAFT"
+  },
+  {
+    "id": "partially_missing_quantity",
+    "text": "Hi, I'm Lee. We're working in Hornsby. We need 100 m2 of Standard Aluminium Cladding plus 50mm Insulation Board, but we haven't measured the insulation area yet.",
+    "expected_name": "Lee",
+    "expected_location": "Hornsby",
+    "expected_items": [
+      {
+        "description": "Standard Aluminium Cladding",
+        "quantity": 100.0
+      },
+      {
+        "description": "50mm Insulation Board",
+        "quantity": null
+      }
+    ],
+    "expected_safety_status": "BLOCK"
+  }
+]

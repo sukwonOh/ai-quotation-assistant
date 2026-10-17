@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from gemini_extractor import extract_enquiry_gemini
+from quotation_safety import check_quotation_safety
 
 # 1. Project paths
 
@@ -16,11 +17,25 @@ OUTPUT_FILE = (
     / "gemini_evaluation_report.json"
 )
 
+BENCHMARK_FILE = (
+    PROJECT_ROOT
+    / "data"
+    / "evaluation"
+    / "benchmark_cases.json"
+)
+
+CATALOGUE_FILE = (
+    PROJECT_ROOT
+    / "data"
+    / "synthetic"
+    / "product_catalogue.csv"
+)
 # 2. Synthetic test cases
 
 TEST_CASES = [
     {
         "id": "standard",
+        "expected_safety_status": "DRAFT",
         "text": (
             "Hi, I'm Alex from ABC Construction. "
             "Our project is in Parramatta, Sydney. "
@@ -43,6 +58,7 @@ TEST_CASES = [
     },
     {
         "id": "informal",
+        "expected_safety_status": "HOLD",
         "text": (
             "Hey mate, I'm Sam. We're doing a job in Ryde. "
             "Could you price up about 80 square metres "
@@ -59,6 +75,7 @@ TEST_CASES = [
     },
     {
         "id": "missing_quantity",
+        "expected_safety_status": "BLOCK",
         "text": (
             "Hi, I'm Maya. Can you quote 50mm Insulation "
             "Board for our project in Chatswood? "
@@ -74,6 +91,30 @@ TEST_CASES = [
         ]
     }
 ]
+
+# Load original and additional benchmark cases
+def load_all_test_cases():
+
+    new_cases = json.loads(
+        BENCHMARK_FILE.read_text(encoding="utf-8")
+    )
+
+    if not isinstance(new_cases, list):
+        raise ValueError(
+            "Benchmark dataset must be a JSON list."
+        )
+
+    all_cases = TEST_CASES + new_cases
+
+    # Prevent duplicated test case IDs
+    case_ids = [case["id"] for case in all_cases]
+
+    if len(case_ids) != len(set(case_ids)):
+        raise ValueError(
+            "Duplicate benchmark case IDs detected."
+        )
+
+    return all_cases
 
 # 3. Normalise text for comparison
 
@@ -195,11 +236,38 @@ def evaluate_case(case,extracted):
 
 # 5. Run all evaluations
 
+# Evaluate actual quotation safety classification
+def evaluate_safety_case(case, extracted):
+
+    expected_status = case["expected_safety_status"]
+
+    # Ensure the validator checks original customer wording
+    enquiry = {
+        **extracted,
+        "source_text": case["text"],
+    }
+
+    safety = check_quotation_safety(
+        enquiry,
+        CATALOGUE_FILE
+    )
+
+    actual_status = safety["status"]
+
+    return {
+        "passed": actual_status == expected_status,
+        "expected_status": expected_status,
+        "actual_status": actual_status,
+        "errors": safety["errors"],
+        "warnings": safety["warnings"],
+    }
+
 def run_evaluation():
 
     results = []
+    all_cases = load_all_test_cases()
 
-    for case in TEST_CASES:
+    for case in all_cases:
         print(f"\nTesting: {case['id']}")
         print("-" * 40)
 
@@ -212,9 +280,15 @@ def run_evaluation():
                 case, extracted
             )
 
+            # Evaluate actual safety classification
+            safety_evaluation = evaluate_safety_case(
+            case, extracted
+            )
+
             results.append({
                 "test_id": case["id"],
                 "evaluation": evaluation,
+                "safety_evaluation": safety_evaluation,
                 "extracted": extracted
             })
 
@@ -223,15 +297,20 @@ def run_evaluation():
                 else "FAIL"
             )
 
-            print(f"Result: {status}")
+            print(f"Extraction result: {status}")
 
-            if evaluation["hold_quotation"]:
-                print("Quotation: HOLD FOR REVIEW")
-            else:
-                print("Quotation: DATA CHECKS PASSED")
+            # Display actual safety classification
+            actual_safety = safety_evaluation["actual_status"]
+            expected_safety = safety_evaluation["expected_status"]
 
-            for error in evaluation["errors"]:
-                print(f"  Issue: {error}")
+            safety_result = (
+                "PASS" if safety_evaluation["passed"]
+                else "FAIL"
+            )
+
+            print(f"Safety classification: {actual_safety}")
+            print(f"Expected safety: {expected_safety}")
+            print(f"Safety evaluation: {safety_result}")
 
         except Exception as error:
 
@@ -247,16 +326,48 @@ def run_evaluation():
             })
 
     # Calculate overall results
-
     passed = sum(
         result["evaluation"]["passed"]
         for result in results
     )
 
+    # Overall extraction pass rate
+    total_cases = len(all_cases)
+
+    extraction_accuracy = round(
+        (passed / total_cases) * 100, 2
+    )
+
+    # Safety accuracy for successfully evaluated cases
+    safety_results = [
+        result["safety_evaluation"]
+        for result in results
+        if "safety_evaluation" in result
+    ]
+
+    safety_evaluated = len(safety_results)
+
+    safety_passed = sum(
+        result["passed"]
+        for result in safety_results
+    )
+
+    safety_accuracy = (
+        round((safety_passed / safety_evaluated) * 100, 2)
+        if safety_evaluated
+        else None
+    )
+
+
+
     report = {
-        "total_tests": len(TEST_CASES),
+        "total_tests": len(all_cases),
         "passed_tests": passed,
-        "failed_tests": len(TEST_CASES) - passed,
+        "failed_tests": len(all_cases) - passed,
+        "extraction_accuracy_percent": extraction_accuracy,
+        "safety_evaluated": safety_evaluated,
+        "safety_passed": safety_passed,
+        "safety_accuracy_percent": safety_accuracy,
         "results": results
     }
 
@@ -275,9 +386,18 @@ def run_evaluation():
 
     print("\nEVALUATION SUMMARY")
     print("=" * 40)
-    print(f"Passed: {passed}/{len(TEST_CASES)}")
-    print(f"Failed: {len(TEST_CASES) - passed}")
+    print(f"Passed: {passed}/{len(all_cases)}")
+    print(f"Failed: {len(all_cases) - passed}")
     print(f"Report saved to: {OUTPUT_FILE}")
+    print(f"Extraction pass rate: {extraction_accuracy}%")
+
+    if safety_accuracy is not None:
+        print(
+            f"Safety accuracy: {safety_accuracy}% "
+            f"({safety_passed}/{safety_evaluated} evaluated)"
+        )
+    else:
+        print("Safety accuracy: Not available")
 
 if __name__ == "__main__":
     run_evaluation()
