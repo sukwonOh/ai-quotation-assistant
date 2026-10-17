@@ -1,3 +1,4 @@
+import math
 import json
 from pathlib import Path
 from catalogue import load_catelogue, validate_catalogue, find_product_by_id
@@ -56,9 +57,15 @@ def create_quotation(product_id, quantity):
             f"Product is inactive: {product_id}"
         )
 
-    if quantity <= 0:
+    # Validate quantity before calculation
+    if (
+        isinstance(quantity, bool)
+        or not isinstance(quantity, (int, float))
+        or not math.isfinite(quantity)
+        or quantity <= 0
+    ):
         raise ValueError(
-            "Quantity must be greater than 0."
+            "Quantity must be a positive finite number."
         )
 
     return calculate_item(
@@ -68,6 +75,12 @@ def create_quotation(product_id, quantity):
 
 def create_full_quotation(items):
     """Create a quotation containing multiple products."""
+
+    # Prevent empty or invalid quotation requests
+    if not isinstance(items, list) or not items:
+        raise ValueError(
+            "Quotation must contain at least one item."
+        )
 
     quotation_items = []
 

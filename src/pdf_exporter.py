@@ -144,11 +144,11 @@ def build_approved_quotation_pdf(export_data: dict) -> bytes:
         ],
         [
             "Project address",
-            Paragraph(safe_text(project.get("company")), cell_style),
+            Paragraph(safe_text(project.get("address")), cell_style),
         ],
         [
             "Project type",
-            Paragraph(safe_text(project.get("company")), cell_style),
+            Paragraph(safe_text(project.get("project_type")), cell_style),
         ],
     ]
 

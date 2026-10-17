@@ -488,16 +488,17 @@ if st.session_state.quotation is not None:
             )
         else:
             export_data = {
-                "status": "APPROVED",
-                "customer": (
-                    st.session_state.extracted_enquiry.get(
-                        "customer", {}
-                    )
-                ),
-                "matched_itmes": st.session_state.matched_items,
-                "quotation": st.session_state.quotation,
-                "safety": latest_safety,
-                "review": st.session_state.review_details
+             "status": "APPROVED",
+             "customer": (
+                 st.session_state.extracted_enquiry.get("customer") or {}
+             ),
+            "project": (
+                 st.session_state.extracted_enquiry.get("project") or {}
+             ),
+            "matched_items": st.session_state.matched_items,
+            "quotation": st.session_state.quotation,
+            "safety": latest_safety,
+            "review": st.session_state.review_details,
             }
 
             json_data = json.dumps(
