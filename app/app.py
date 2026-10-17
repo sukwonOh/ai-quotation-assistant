@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import math
 import os
 import sys
+import json
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -24,6 +25,7 @@ from enquiry_matcher import match_enquiry_to_catalogue
 from quotation_module import create_full_quotation
 from catalogue import load_catelogue, find_product_by_id
 from quotation_safety import check_quotation_safety
+from pdf_exporter import build_approved_quotation_pdf
 
 CATALOGUE_PATH = (
     PROJECT_ROOT
@@ -168,7 +170,16 @@ with st.sidebar:
 
 
 # Session state
-for key in ("extracted_enquiry", "matched_items", "quotation", "safety"):
+default_state = {
+    "extracted_enquiry": None,
+    "matched_items": None,
+    "quotation": None,
+    "safety": None,
+    "review_status": "PENDING",
+    "reivew_details": None,
+}
+
+for key,value in default_state.items():
     if key not in st.session_state:
         st.session_state[key] = None
 
@@ -197,11 +208,19 @@ with st.form("enquiry_form"):
     )
 
 if submitted:
-    #Clear old results before processing a new enquiry
-    st.session_state.safety = None
+    # Clear previous enquiry and quotation
     st.session_state.extracted_enquiry = None
     st.session_state.matched_items = None
     st.session_state.quotation = None
+    st.session_state.safety = None
+
+    # Reset human approval for every new enquiry
+    st.session_state.review_status = "PENDING"
+    st.session_state.review_details = None
+
+    # Clear previous reviewer input
+    st.session_state["reviewer_name"] = ""
+    st.session_state["review_confirm"] = False
 
 
     if not enquiry_text.strip():
@@ -293,8 +312,15 @@ if st.session_state.extracted_enquiry is not None:
             or st.session_state.safety["status"] != "DRAFT"
         )
     ):
+        # Reset previous quotation
         st.session_state.matched_items = None
         st.session_state.quotation = None
+
+        # Reset previous human approval
+        st.session_state.review_status = "PENDING"
+        st.session_state.review_details = None
+        st.session_state["reviewer_name"] = ""
+        st.session_state["review_confirm"] = False
 
         try:
             with st.spinner("Matching products and calculating..."):
@@ -346,10 +372,168 @@ if st.session_state.quotation is not None:
     )
 
     st.warning(
-        "DRAFT ONLY - Safety checks are not yet connected "
-        "to this interface. Human review is required."
-        "Do not approve or send this quotation."
+        "DRAFT ONLY - Safety validation completed "
+        "Human approval is required before export."
     )
 
     with st.expander("View Quotation JSON"):
         st.json(quotation)
+
+    # Step 5: Human Review
+    st.header("5. Human Review & Approval")
+
+    st.info(
+        "Please verify the customer details, project scope "
+        "product quantities, prices, GST, and safety warnings "
+        "before approving this quotation."
+    )
+
+    reviewer = st.text_input(
+        "Reviewer Name",
+        key = "reviewer_name"
+    )
+
+    confirmed = st.checkbox(
+        "I have reviewed the quotation and confirmed "
+        "the detials are correct.",
+        key = "review_confirm"
+    )
+
+    can_approve = (
+        st.session_state.safety is not None
+        and st.session_state.safety["status"] == "DRAFT"
+        and st.session_state.review_status == "PENDING"
+        and bool(reviewer.strip())
+        and confirmed
+    )
+
+    col_approve, col_reject = st.columns(2)
+
+    with col_approve:
+        if st.button(
+            "Approve Quotation",
+            type = "primary",
+            disabled=not can_approve
+        ):
+            # Revalidate safety before approving
+            latest_safety = check_quotation_safety(
+                st.session_state.extracted_enquiry,
+                CATALOGUE_PATH
+            )
+
+            if latest_safety["status"] == "DRAFT":
+                from datetime import datetime, timezone
+
+                st.session_state.review_status = "APPROVED"
+                st.session_state.review_details = {
+                    "reviewer": reviewer.strip(),
+                    "approved_at_utc": datetime.now(
+                        timezone.utc
+                    ).isoformat()
+                }
+
+                st.success("Quotation approved!")
+
+            else:
+                st.session_state.safety = latest_safety
+                st.error(
+                    "Approval refuesd: safety validation failed."
+                )
+
+    with col_reject:
+        if st.button(
+            "Reject Quotation",
+            disabled=(
+                st.session_state.review_status != "PENDING"
+            )
+        ):
+            st.session_state.review_status = "REJECTED"
+            st.session_state.review_details = None
+
+            st.rerun()
+
+    # Display current review status
+    status = st.session_state.review_status
+
+    if status == "APPROVED":
+        st.success("Review status: APPROVED")
+        st.json(st.session_state.review_details)
+
+    elif status == "REJECTED":
+        st.error("Review status: REJECTED")
+
+    else:
+        st.warning("Review status: PENDING")
+
+    # Step 6: Approved Quotation Export
+    st.header("6. Approved Quotation Export")
+
+    approved = (
+        st.session_state.review_status == "APPROVED"
+        and st.session_state.review_details is not None
+        and st.session_state.safety is not None
+        and st.session_state.safety["status"] == "DRAFT"
+    )
+
+    if approved:
+        # Recheck safety before exporting
+        latest_safety = check_quotation_safety(
+            st.session_state.extracted_enquiry,
+            CATALOGUE_PATH
+        )
+
+        if latest_safety["status"] != "DRAFT":
+            st.error(
+                "Export blocked: safety validation failed."
+            )
+        else:
+            export_data = {
+                "status": "APPROVED",
+                "customer": (
+                    st.session_state.extracted_enquiry.get(
+                        "customer", {}
+                    )
+                ),
+                "matched_itmes": st.session_state.matched_items,
+                "quotation": st.session_state.quotation,
+                "safety": latest_safety,
+                "review": st.session_state.review_details
+            }
+
+            json_data = json.dumps(
+                export_data,
+                indent = 4,
+                ensure_ascii = False
+            )
+
+            st.download_button(
+                label = "Download Approved Quotation (JSON)",
+                data = json_data,
+                file_name = "approved_quotation.json",
+                mime = "application/json"
+            )
+
+            # Step 4C.3.3 - PDF Export
+            try:
+                pdf_data = build_approved_quotation_pdf(
+                    export_data
+                )
+
+                st.download_button(
+                    label="Download Approved Quotation (PDF)",
+                    data = pdf_data,
+                    file_name= "approved_quotation.pdf",
+                    mime = "application/pdf",
+                    key = "download_approved_pdf"
+                )
+
+            except Exception as error:
+                st.error(
+                    f"PDF generation failed: {error}"
+                )
+
+    else :
+        st.info(
+            "Quotation export is available only "
+            "after human approval."
+        )
