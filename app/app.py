@@ -218,12 +218,48 @@ st.write("AI-powered construction quotation system")
 
 # Sidebar
 with st.sidebar:
-    st.header("Project Navigation")
-    st.write("Step 1: Product Catalogue✅")
-    st.write("Step 2: Enquiry Processing ✅")
-    st.write("Step 3: AI Pipeline & Safety ✅")
-    st.write("Step 4: Streamlit UI 🚧")
+    st.header("🧾 AI Quotation Assistant")
+    st.caption("Construction Quotation Demo")
 
+    st.divider()
+
+    st.subheader("About this application")
+
+    st.write(
+        "This prototype uses Google Gemini to extract "
+        "information from construction enquiries and "
+        "Python to generate quotations."
+    )
+
+    st.divider()
+
+    st.subheader("How to use")
+
+    st.markdown(
+        """
+        1. Enter a customer enquiry
+        2. Extract information using Gemini
+        3. Review safety and pricing
+        4. Approve the quotation
+        5. Download JSON or PDF
+        """
+    )
+
+    st.divider()
+
+    st.subheader("Demo limitations")
+
+    st.caption(
+        "Uses synthetic catalogue prices. "
+        "Human approval is required."
+    )
+
+    st.divider()
+
+    st.link_button(
+        "View on GitHub",
+        "https://github.com/sukwonOh/ai-quotation-assistant"
+    )
 
 # Session state
 default_state = {
