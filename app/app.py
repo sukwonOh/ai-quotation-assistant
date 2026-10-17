@@ -4,8 +4,10 @@ import math
 import os
 import sys
 import json
-
 import streamlit as st
+import hmac
+import time
+
 from dotenv import load_dotenv
 
 # Project configuration
@@ -45,8 +47,17 @@ def generate_quotation(extracted):
     if not isinstance(raw_items, list) or not raw_items:
         raise ValueError("No quotation items were extracted.")
 
-    # Keep the original customer wording for safety checks
-    extracted["source_text"] = enquiry_text
+    # Ensure the quotation uses the original extracted enquiry
+    original_text = extracted.get("source_text")
+
+    if (
+        not isinstance(original_text, str)
+        or original_text.strip() != enquiry_text.strip()
+    ):
+        raise ValueError(
+            "Customer enquiry has changed. "
+            "Please run AI extraction again before generating a quotation."
+    )
 
     # Step 1: Safety validation
     safety = check_quotation_safety(
@@ -156,6 +167,51 @@ st.set_page_config(
     layout="wide"
 )
 
+
+# Step 5D - Demo access and cloud secrets
+
+try:
+    cloud_api_key = st.secrets.get("GEMINI_API_KEY")
+    cloud_password = st.secrets.get("DEMO_PASSWORD")
+except FileNotFoundError:
+    cloud_api_key = None
+    cloud_password = None
+
+# Support Streamlit Cloud and local .env
+if cloud_api_key:
+    os.environ["GEMINI_API_KEY"] = str(cloud_api_key)
+
+demo_password = cloud_password or os.getenv("DEMO_PASSWORD")
+
+if not demo_password:
+    st.error("Demo access is not configured.")
+    st.stop()
+
+# Restrict access to the application
+if not st.session_state.get("demo_authenticated", False):
+
+    st.title("AI Quotation Assistant")
+    st.info("This portfolio demonstration requires access.")
+
+    with st.form("demo_login"):
+        entered_password = st.text_input(
+            "Demo Password",
+            type="password"
+        )
+        login_clicked = st.form_submit_button("Enter Demo")
+
+    if login_clicked:
+        if hmac.compare_digest(
+            entered_password,
+            str(demo_password)
+        ):
+            st.session_state.demo_authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+
+    st.stop()
+
 # Application title
 st.title("🧾 AI Quotation Assistant")
 st.write("AI-powered construction quotation system")
@@ -193,13 +249,27 @@ I need about 120 m2 of Standard Aluminium Cladding and 120 m2 of 50mm Insulation
 The project is located in Parramatta.
 """
 
+# Step 5D.4B - Gemini API usage protection
+
+MAX_ENQUIRY_CHARS = 3000
+MAX_AI_REQUESTS = 5
+AI_COOLDOWN_SECONDS = 30
+
+# Track requests within the current Streamlit session
+if "ai_request_count" not in st.session_state:
+    st.session_state.ai_request_count = 0
+
+if "last_ai_request_time" not in st.session_state:
+    st.session_state.last_ai_request_time = None
+
 st.header("1. Customer Enquiry")
 
 with st.form("enquiry_form"):
     enquiry_text = st.text_area(
         "Enter customer enquiry:",
         value=example_enquiry,
-        height = 200
+        height = 200,
+        max_chars = MAX_ENQUIRY_CHARS
     )
 
     submitted = st.form_submit_button(
@@ -208,49 +278,88 @@ with st.form("enquiry_form"):
     )
 
 if submitted:
-    # Clear previous enquiry and quotation
+    # Invalidate previous results whenever a new enquiry is submitted
     st.session_state.extracted_enquiry = None
     st.session_state.matched_items = None
     st.session_state.quotation = None
     st.session_state.safety = None
-
-    # Reset human approval for every new enquiry
     st.session_state.review_status = "PENDING"
     st.session_state.review_details = None
-
-    # Clear previous reviewer input
     st.session_state["reviewer_name"] = ""
     st.session_state["review_confirm"] = False
 
+    current_time = time.monotonic()
+    last_request = st.session_state.last_ai_request_time
 
+    # 1. Validate enquiry input
     if not enquiry_text.strip():
-        st.warning(
-                "DRAFT ONLY - Safety validation completed. "
-                "Human review and approval are required "
-                "before sending this quotation."
-            )
+        st.warning("Please enter a customer enquiry.")
 
+    elif len(enquiry_text) > MAX_ENQUIRY_CHARS:
+        st.error("Customer enquiry exceeds the character limit.")
+
+    # 2. Check session request limit
+    elif st.session_state.ai_request_count >= MAX_AI_REQUESTS:
+        st.error(
+            "Demo request limit reached. "
+            "This session cannot submit more AI requests."
+        )
+
+    # 3. Check cooldown
+    elif (
+        last_request is not None
+        and current_time - last_request < AI_COOLDOWN_SECONDS
+    ):
+        remaining = math.ceil(
+            AI_COOLDOWN_SECONDS - (current_time - last_request)
+        )
+
+        st.warning(
+            f"Please wait {remaining} seconds "
+            "before making another AI request."
+        )
+
+    # 4. Check API key
     elif not os.getenv("GEMINI_API_KEY"):
         st.error("GEMINI_API_KEY is missing.")
 
-    else :
+    else:
+
+        # Reset previous enquiry and quotation
+        st.session_state.extracted_enquiry = None
+        st.session_state.matched_items = None
+        st.session_state.quotation = None
+        st.session_state.safety = None
+
+        # Reset human approval
+        st.session_state.review_status = "PENDING"
+        st.session_state.review_details = None
+        st.session_state["reviewer_name"] = ""
+        st.session_state["review_confirm"] = False
+
+        # Count the attempt before calling Gemini
+        st.session_state.ai_request_count += 1
+        st.session_state.last_ai_request_time = current_time
+
         try:
             with st.spinner("Extracting with Gemini AI..."):
                 extracted = extract_enquiry_gemini(enquiry_text)
 
             if not isinstance(extracted, dict):
-                raise ValueError("Gemini did not return a dictionary.")
+                raise ValueError(
+                    "Gemini did not return a dictionary."
+                )
 
-            # Step 1: Preserve original customer enquiry
+            # Preserve original enquiry
             extracted["source_text"] = enquiry_text
 
-            # Step 2 : Run safety validation
+            # Safety validation
             safety = check_quotation_safety(
                 extracted,
                 CATALOGUE_PATH
             )
 
-            # Step 3: Save results to session state
+            # Save results
             st.session_state.extracted_enquiry = extracted
             st.session_state.safety = safety
 
