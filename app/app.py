@@ -1,5 +1,4 @@
 from pathlib import Path
-from types import SimpleNamespace
 import math
 import os
 import sys
@@ -23,10 +22,8 @@ load_dotenv(PROJECT_ROOT / ".env")
 # Import our existing AI extractor
 
 from src.gemini_extractor import extract_enquiry_gemini
-from enquiry_matcher import match_enquiry_to_catalogue
-from quotation_module import create_full_quotation
-from catalogue import load_catelogue, find_product_by_id
 from quotation_safety import check_quotation_safety
+from quotation_service import generate_quotation
 from pdf_exporter import build_approved_quotation_pdf
 
 CATALOGUE_PATH = (
@@ -35,129 +32,6 @@ CATALOGUE_PATH = (
     / "synthetic"
     / "product_catalogue.csv"
 )
-
-def normalize_unit(unit):
-    return str(unit).strip().lower().replace("²", "2").replace(" ","")
-
-def generate_quotation(extracted):
-    """ Connect Gemini extraction to the existing quotation engine. """
-
-    raw_items = extracted.get("items")
-
-    if not isinstance(raw_items, list) or not raw_items:
-        raise ValueError("No quotation items were extracted.")
-
-    # Ensure the quotation uses the original extracted enquiry
-    original_text = extracted.get("source_text")
-
-    if (
-        not isinstance(original_text, str)
-        or original_text.strip() != enquiry_text.strip()
-    ):
-        raise ValueError(
-            "Customer enquiry has changed. "
-            "Please run AI extraction again before generating a quotation."
-    )
-
-    # Step 1: Safety validation
-    safety = check_quotation_safety(
-        extracted,
-        CATALOGUE_PATH
-    )
-
-    st.session_state.extracted_enquiry = extracted
-    st.session_state.safety = safety
-
-    # Stop unsafe enquiries before pricing
-    if safety["status"] != "DRAFT":
-        reasons = safety["errors"] + safety["warnings"]
-
-        raise ValueError(
-            f"Quotation {safety['status']}: "
-            + "; ".join(reasons)
-        )
-
-    # Convert Gemini dictionaries into matcher-compatible objects
-    structured_items = []
-
-    for index, item in enumerate(raw_items, start=1):
-        if not isinstance(item, dict):
-            raise ValueError("No quotation items were extracted.")
-
-    # Convert Gemini dictionaries into matcher-compatible objects
-    structured_items = []
-
-    for index, item in enumerate(raw_items, start=1):
-        if not isinstance(item, dict):
-            raise ValueError(f"Invalid item {index}.")
-
-        description = str(item.get("description") or "").strip()
-        unit = str(item.get("unit") or "").strip()
-
-        try:
-            quantity = float(item.get("quantity"))
-        except (TypeError, ValueError):
-            raise ValueError(f"Invalid quantity for item {index}.")
-
-        if not description or not unit:
-            raise ValueError(f"Missing description or unit for item {index}.")
-
-        if not math.isfinite(quantity) or quantity <= 0:
-            raise ValueError(f"Quantity must be positive for item {index}.")
-
-        structured_items.append(
-            SimpleNamespace(
-                description = description,
-                quantity = quantity,
-                unit = unit
-            )
-        )
-
-    structured_enquiry = SimpleNamespace(items = structured_items)
-
-    # Match products using the existing module
-    matched_itmes = match_enquiry_to_catalogue(
-        structured_enquiry
-    )
-
-    # Never silently ignore unmatched items
-    if len(matched_itmes) != len(structured_items):
-        raise ValueError(
-            "One or more products could not be matched. "
-            "Manual review required."
-        )
-
-    # Check units against the actual catalogue
-    catalogue = load_catelogue()
-
-    for item in matched_itmes:
-        product = find_product_by_id(
-            catalogue,
-            item["product_id"]
-        )
-
-        if product.empty:
-            raise ValueError("Matched product was not found. ")
-
-        catalogue_unit = product.iloc[0]["unit"]
-
-        if normalize_unit(item["unit"]) != normalize_unit(catalogue_unit):
-            raise ValueError(
-                f"Unit mismatch for {item['product_name']}."
-                "Manual review required."
-            )
-    # Prepare quotation engine input
-    quotation_items = [
-        {
-            "product_id" : item["product_id"],
-            "quantity" : item["quantity"]
-        }
-        for item in matched_itmes
-    ]
-
-    quotation = create_full_quotation(quotation_items)
-
-    return matched_itmes, quotation
 
 # Page configuration
 
@@ -261,28 +135,60 @@ with st.sidebar:
         "https://github.com/sukwonOh/ai-quotation-assistant"
     )
 
-# Session state
-default_state = {
+# Session state management.
+DEFAULT_STATE = {
     "extracted_enquiry": None,
     "matched_items": None,
     "quotation": None,
     "safety": None,
     "review_status": "PENDING",
-    "reivew_details": None,
+    "review_details": None,
 }
 
-for key,value in default_state.items():
+# Initialise each value only once per session
+for key, value in DEFAULT_STATE.items():
     if key not in st.session_state:
-        st.session_state[key] = None
+        st.session_state[key] = value
 
+def reset_review_state():
+    """ Reset Human approval information. """
 
+    st.session_state.review_status = "PENDING"
+    st.session_state.review_details = None
+
+    st.session_state["reviewer_name"] = ""
+    st.session_state["reviewer_confirm"] = False
+
+def reset_quotation_state():
+    """ Clear quotation and approval information. """
+
+    st.session_state.matched_items = None
+    st.session_state.quotation = None
+
+    reset_review_state()
+
+def reset_enquiry_state():
+    """ Clear all results from the previous enquiry. """
+
+    st.session_state.extracted_enquiry = None
+    st.session_state.safety = None
+
+    reset_quotation_state()
 
 example_enquiry = """
-Hi, my name is Daniel.
+Hi, my name is Alex from Example Construction.
 
-I need about 120 m2 of Standard Aluminium Cladding and 120 m2 of 50mm Insulation Board.
+We are renovating a commercial property in Parramatta, Sydney.
 
-The project is located in Parramatta.
+Could you please provide a quotation for:
+
+- 120 m2 of Standard Aluminium Cladding
+- 120 m2 of 50mm Insulation Board
+
+Please include installation.
+
+Thanks,
+Alex
 """
 
 # Step 5D.4B - Gemini API usage protection
@@ -314,15 +220,8 @@ with st.form("enquiry_form"):
     )
 
 if submitted:
-    # Invalidate previous results whenever a new enquiry is submitted
-    st.session_state.extracted_enquiry = None
-    st.session_state.matched_items = None
-    st.session_state.quotation = None
-    st.session_state.safety = None
-    st.session_state.review_status = "PENDING"
-    st.session_state.review_details = None
-    st.session_state["reviewer_name"] = ""
-    st.session_state["review_confirm"] = False
+    # Clear previous enquiry, quotation, and approval
+    reset_enquiry_state()
 
     current_time = time.monotonic()
     last_request = st.session_state.last_ai_request_time
@@ -360,19 +259,6 @@ if submitted:
         st.error("GEMINI_API_KEY is missing.")
 
     else:
-
-        # Reset previous enquiry and quotation
-        st.session_state.extracted_enquiry = None
-        st.session_state.matched_items = None
-        st.session_state.quotation = None
-        st.session_state.safety = None
-
-        # Reset human approval
-        st.session_state.review_status = "PENDING"
-        st.session_state.review_details = None
-        st.session_state["reviewer_name"] = ""
-        st.session_state["review_confirm"] = False
-
         # Count the attempt before calling Gemini
         st.session_state.ai_request_count += 1
         st.session_state.last_ai_request_time = current_time
@@ -403,6 +289,7 @@ if submitted:
 
         except Exception as error:
             st.error(f"AI extraction failed: {error}")
+
 
 # Displat extracted information
 if st.session_state.extracted_enquiry is not None:
@@ -457,19 +344,14 @@ if st.session_state.extracted_enquiry is not None:
             or st.session_state.safety["status"] != "DRAFT"
         )
     ):
-        # Reset previous quotation
-        st.session_state.matched_items = None
-        st.session_state.quotation = None
-
-        # Reset previous human approval
-        st.session_state.review_status = "PENDING"
-        st.session_state.review_details = None
-        st.session_state["reviewer_name"] = ""
-        st.session_state["review_confirm"] = False
+        reset_quotation_state()
 
         try:
             with st.spinner("Matching products and calculating..."):
-                matched, quotation = generate_quotation(extracted)
+                matched, quotation = generate_quotation(
+                    extracted,
+                    enquiry_text
+                )
 
             st.session_state.matched_items = matched
             st.session_state.quotation = quotation

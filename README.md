@@ -30,6 +30,29 @@ Invited viewers must sign in and enter the demo password.
 Prices are synthetic and should not be used for real
 construction quotations.
 
+
+## Live Demo
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ai-quotation-assistant-r7zf84qw8sdbpw47t3fqwh.streamlit.app/)
+
+**[Launch AI Quotation Assistant](https://ai-quotation-assistant-r7zf84qw8sdbpw47t3fqwh.streamlit.app/)**
+
+The application is deployed on Streamlit Community Cloud.
+
+This portfolio demonstration includes:
+- Gemini-powered customer enquiry extraction
+- Rule-based quotation safety validation
+- Product catalogue matching
+- Deterministic quotation calculations
+- Human review and approval
+- JSON and PDF quotation export
+
+**Access:** The demo requires a password and may require
+Streamlit viewer permission.
+
+**Disclaimer:** Uses synthetic catalogue prices and fictional
+customer examples. Not intended for production quotations.
+
 ## Features
 
 - **LLM-based extraction:** Extract customer details, project information, product descriptions, quantities, units, and notes from an enquiry using Google Gemini and a Pydantic schema.

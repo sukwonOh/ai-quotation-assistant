@@ -99,7 +99,7 @@ Run automated regression tests:
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-The latest automated test run passed 32 tests.
+The latest automated test run passed 36 tests.
 
 ## 6. Limitations
 
