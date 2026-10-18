@@ -1,4 +1,3 @@
-
 [
   {
     "id": "residential_multi_item",
@@ -69,6 +68,66 @@
       {
         "description": "50mm Insulation Board",
         "quantity": null
+      }
+    ],
+    "expected_safety_status": "BLOCK"
+  },
+  {
+    "id": "decimal_quantity",
+    "text": "Hi, I'm Nina. Our facade refurbishment project is in Burwood. Could you quote 12.5 m2 of Premium Aluminium Cladding?",
+    "expected_name": "Nina",
+    "expected_location": "Burwood",
+    "expected_items": [
+      {
+        "description": "Premium Aluminium Cladding",
+        "quantity": 12.5
+      }
+    ],
+    "expected_safety_status": "DRAFT"
+  },
+  {
+    "id": "three_products",
+    "text": "Hi, this is Oliver. We have a project in Epping. Please quote 40 m2 of Standard Aluminium Cladding, 40 m2 of 50mm Insulation Board, and 40 m2 of Standard Fixing Set.",
+    "expected_name": "Oliver",
+    "expected_location": "Epping",
+    "expected_items": [
+      {
+        "description": "Standard Aluminium Cladding",
+        "quantity": 40.0
+      },
+      {
+        "description": "50mm Insulation Board",
+        "quantity": 40.0
+      },
+      {
+        "description": "Standard Fixing Set",
+        "quantity": 40.0
+      }
+    ],
+    "expected_safety_status": "DRAFT"
+  },
+  {
+    "id": "rough_quantity",
+    "text": "G'day, I'm Casey. The site is in Newtown. We need roughly 55 m2 of Premium Aluminium Cladding for installation.",
+    "expected_name": "Casey",
+    "expected_location": "Newtown",
+    "expected_items": [
+      {
+        "description": "Premium Aluminium Cladding",
+        "quantity": 55.0
+      }
+    ],
+    "expected_safety_status": "HOLD"
+  },
+  {
+    "id": "zero_quantity",
+    "text": "Hi, I'm Morgan. Our site is in Bondi. Please quote 0 m2 of 50mm Insulation Board.",
+    "expected_name": "Morgan",
+    "expected_location": "Bondi",
+    "expected_items": [
+      {
+        "description": "50mm Insulation Board",
+        "quantity": 0.0
       }
     ],
     "expected_safety_status": "BLOCK"

@@ -16,8 +16,16 @@ The evaluation measures:
 
 ## 2. Evaluation Dataset
 
-The benchmark contains 8 synthetic construction
+The benchmark contains 12 synthetic construction
 customer enquiries.
+
+The dataset consists of three original cases
+defined in Python and nine additional labelled
+cases stored in JSON.
+
+The expanded benchmark includes decimal quantities,
+multiple products, approximate quantities, unknown
+products, zero quantities, and missing information.
 
 The test scenarios include:
 
@@ -58,20 +66,43 @@ classifies the extracted enquiry as:
 
 ## 4. Results
 
+The expanded benchmark was evaluated using 12
+synthetic construction enquiries.
+
+### Overall Results
+
 | Metric | Result |
 |---|---|
-| Total benchmark cases | 8 |
-| Extraction cases passed | 8/8 |
+| Total benchmark cases | 12 |
+| Extraction cases passed | 12/12 |
 | Extraction pass rate | 100% |
-| Correct safety classifications | 8/8 |
-| Safety classification accuracy | 100% |
+| Correct safety classifications | 12/12 |
+| Safety classification agreement | 100% |
 | Failed extraction cases | 0 |
 
-All eight synthetic enquiries passed the defined
-extraction checks in the recorded evaluation run.
+### Field-Level Accuracy
 
-All eight resulting safety classifications matched
-their expected labels.
+| Field | Correct / Evaluated | Accuracy |
+|---|---|---|
+| Customer name | 12/12 | 100% |
+| Project location | 12/12 | 100% |
+| Product count | 12/12 | 100% |
+| Product descriptions | 17/17 | 100% |
+| Product quantities | 17/17 | 100% |
+| Product units | 15/15 | 100% |
+
+Two items had missing quantities, so their units
+were excluded from the unit-accuracy denominator.
+
+All 12 cases passed the defined extraction checks
+in one recorded Gemini evaluation run.
+
+Safety classification agreement was measured
+against predefined DRAFT, HOLD, and BLOCK labels.
+
+These results describe performance on a small
+synthetic benchmark and do not establish
+real-world production accuracy.
 
 ## 5. Reproducibility
 
@@ -99,11 +130,11 @@ Run automated regression tests:
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-The latest automated test run passed 36 tests.
+The latest automated test run passed 39 tests.
 
 ## 6. Limitations
 
-- The dataset contains only 8 synthetic examples.
+- The dataset contains only 12 synthetic examples.
 - Results are from one recorded evaluation run.
 - Performance may vary across repeated API calls.
 - The benchmark does not cover all possible

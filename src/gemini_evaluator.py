@@ -126,6 +126,131 @@ def normalise(value):
         )
     )
 
+def evaluate_fields(case, extracted):
+    """Measure extraction accuracy separately for each field."""
+
+    field_names = (
+        "customer_name",
+        "project_location",
+        "product_count",
+        "product_description",
+        "quantity",
+        "unit",
+    )
+
+    results = {
+        field: {"correct": 0, "total": 0}
+        for field in field_names
+    }
+
+    def score(field, correct):
+        results[field]["total"] += 1
+        results[field]["correct"] += int(bool(correct))
+
+    def normalise_unit(unit):
+        return (
+            str(unit or "")
+            .strip()
+            .lower()
+            .replace("²", "2")
+            .replace(" ", "")
+        )
+
+    customer = extracted.get("customer") or {}
+    project = extracted.get("project") or {}
+    items = extracted.get("items") or []
+
+    score(
+        "customer_name",
+        normalise(customer.get("name"))
+        == normalise(case["expected_name"]),
+    )
+
+    expected_location = normalise(case["expected_location"])
+    actual_location = normalise(project.get("address"))
+
+    score(
+        "project_location",
+        bool(expected_location)
+        and expected_location in actual_location,
+    )
+
+    expected_items = case["expected_items"]
+
+    score("product_count", len(items) == len(expected_items))
+
+    # Match each predicted product at most once.
+    remaining_items = list(items)
+
+    for expected in expected_items:
+        expected_description = normalise(
+            expected["description"]
+        )
+
+        match_index = next(
+            (
+                i for i, item in enumerate(remaining_items)
+                if normalise(item.get("description"))
+                == expected_description
+            ),
+            None,
+        )
+
+        matched = (
+            remaining_items.pop(match_index)
+            if match_index is not None
+            else None
+        )
+
+        score("product_description", matched is not None)
+
+        expected_qty = expected["quantity"]
+        actual_qty = (
+            matched.get("quantity")
+            if matched is not None
+            else None
+        )
+
+        if matched is None:
+            quantity_correct = False
+        elif expected_qty is None:
+            quantity_correct = actual_qty is None
+        else:
+            quantity_correct = (
+                isinstance(actual_qty, (int, float))
+                and not isinstance(actual_qty, bool)
+                and math.isfinite(actual_qty)
+                and math.isclose(actual_qty, expected_qty)
+            )
+
+        score("quantity", quantity_correct)
+
+        # Missing-quantity cases have no expected unit.
+        if expected_qty is not None:
+            expected_unit = expected.get("unit", "m2")
+            actual_unit = (
+                matched.get("unit")
+                if matched is not None
+                else None
+            )
+
+            score(
+                "unit",
+                matched is not None
+                and normalise_unit(actual_unit)
+                == normalise_unit(expected_unit),
+            )
+
+    for stats in results.values():
+        total = stats["total"]
+        stats["accuracy_percent"] = (
+            round(100 * stats["correct"] / total, 2)
+            if total
+            else None
+        )
+
+    return results
+
 # 4. Evaluate Gemini's extraction
 
 def evaluate_case(case,extracted):
@@ -262,6 +387,52 @@ def evaluate_safety_case(case, extracted):
         "warnings": safety["warnings"],
     }
 
+def aggregate_field_accuracy(results):
+    """Aggregate field-level results across evaluated cases."""
+
+    field_names = (
+        "customer_name",
+        "project_location",
+        "product_count",
+        "product_description",
+        "quantity",
+        "unit",
+    )
+
+    summary = {
+        field: {"correct": 0, "total": 0}
+        for field in field_names
+    }
+
+    evaluated_cases = 0
+
+    for result in results:
+        fields = result.get("field_evaluation")
+
+        if fields is None:
+            continue
+
+        evaluated_cases += 1
+
+        for field in field_names:
+            summary[field]["correct"] += fields[field]["correct"]
+            summary[field]["total"] += fields[field]["total"]
+
+    for stats in summary.values():
+        total = stats["total"]
+
+        stats["accuracy_percent"] = (
+            round(100 * stats["correct"] / total, 2)
+            if total > 0
+            else None
+        )
+
+    return {
+        "total_cases": len(results),
+        "evaluated_cases": evaluated_cases,
+        "metrics": summary,
+    }
+
 def run_evaluation():
 
     results = []
@@ -280,6 +451,10 @@ def run_evaluation():
                 case, extracted
             )
 
+            field_evaluation = evaluate_fields(
+                case, extracted
+            )
+
             # Evaluate actual safety classification
             safety_evaluation = evaluate_safety_case(
             case, extracted
@@ -288,6 +463,7 @@ def run_evaluation():
             results.append({
                 "test_id": case["id"],
                 "evaluation": evaluation,
+                "field_evaluation": field_evaluation,
                 "safety_evaluation": safety_evaluation,
                 "extracted": extracted
             })
@@ -326,6 +502,8 @@ def run_evaluation():
             })
 
     # Calculate overall results
+    field_accuracy_summary = aggregate_field_accuracy(results)
+
     passed = sum(
         result["evaluation"]["passed"]
         for result in results
@@ -368,6 +546,7 @@ def run_evaluation():
         "safety_evaluated": safety_evaluated,
         "safety_passed": safety_passed,
         "safety_accuracy_percent": safety_accuracy,
+        "field_accuracy_summary": field_accuracy_summary,
         "results": results
     }
 
@@ -398,6 +577,29 @@ def run_evaluation():
         )
     else:
         print("Safety accuracy: Not available")
+
+    print("\nFIELD-LEVEL ACCURACY")
+    print("=" * 40)
+
+    print(
+        f"Evaluated cases: "
+        f"{field_accuracy_summary['evaluated_cases']}/"
+        f"{field_accuracy_summary['total_cases']}"
+    )
+
+    for field, stats in field_accuracy_summary["metrics"].items():
+        accuracy = stats["accuracy_percent"]
+
+        accuracy_text = (
+            f"{accuracy:.2f}%"
+            if accuracy is not None
+            else "N/A"
+        )
+
+        print(
+            f"{field}: {accuracy_text} "
+            f"({stats['correct']}/{stats['total']})"
+        )
 
 if __name__ == "__main__":
     run_evaluation()

@@ -9,6 +9,8 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 from gemini_evaluator import (
     TEST_CASES,
     evaluate_case,
+    evaluate_fields,
+    aggregate_field_accuracy,
     load_all_test_cases,
     evaluate_safety_case,
 )
@@ -169,6 +171,92 @@ class TestGeminiEvaluator(unittest.TestCase):
                     result["passed"],
                     msg=f"{case['id']}: {result}"
                 )
+
+    def test_field_accuracy_all_correct(self):
+        result = evaluate_fields(
+            self.cases["standard"],
+            self.standard_output,
+        )
+
+        for field, stats in result.items():
+            self.assertEqual(
+                stats["accuracy_percent"],
+                100.0,
+                msg=f"Incorrect score for {field}",
+            )
+
+    def test_field_accuracy_detects_errors(self):
+        extracted = copy.deepcopy(self.standard_output)
+
+        extracted["customer"]["name"] = "Wrong Name"
+        extracted["items"][0]["quantity"] = 999
+
+        result = evaluate_fields(
+            self.cases["standard"],
+            extracted,
+        )
+
+        self.assertEqual(
+            result["customer_name"]["accuracy_percent"],
+            0.0,
+        )
+
+        self.assertEqual(
+            result["quantity"]["accuracy_percent"],
+            50.0,
+        )
+
+        self.assertEqual(
+            result["product_description"]["accuracy_percent"],
+            100.0,
+        )
+
+    def test_aggregate_field_accuracy(self):
+        case = self.cases["standard"]
+
+        correct = evaluate_fields(
+            case,
+            self.standard_output,
+        )
+
+        incorrect_output = copy.deepcopy(
+            self.standard_output
+        )
+
+        incorrect_output["customer"]["name"] = "Wrong Name"
+        incorrect_output["items"][0]["quantity"] = 999
+
+        incorrect = evaluate_fields(
+            case,
+            incorrect_output,
+        )
+
+        summary = aggregate_field_accuracy([
+            {"field_evaluation": correct},
+            {"field_evaluation": incorrect},
+            {"test_id": "failed_api_call"},
+        ])
+
+        self.assertEqual(summary["total_cases"], 3)
+        self.assertEqual(summary["evaluated_cases"], 2)
+
+        metrics = summary["metrics"]
+
+        self.assertEqual(
+            metrics["customer_name"]["accuracy_percent"],
+            50.0,
+        )
+
+        self.assertEqual(
+            metrics["quantity"]["accuracy_percent"],
+            75.0,
+        )
+
+        self.assertEqual(
+            metrics["product_description"]["accuracy_percent"],
+            100.0,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
