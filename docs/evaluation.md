@@ -104,6 +104,68 @@ These results describe performance on a small
 synthetic benchmark and do not establish
 real-world production accuracy.
 
+### Consistency Evaluation
+
+Three synthetic enquiries were evaluated three times each,
+resulting in nine Gemini extraction attempts.
+
+| Scenario | Extraction | Safety | Pairwise consistency |
+|---|---|---|---|
+| Standard enquiry | 3/3 | 3/3 | 100% |
+| Approximate quantity | 3/3 | 3/3 | 100% |
+| Missing quantity | 3/3 | 3/3 | 100% |
+
+All nine extraction attempts passed the defined checks,
+and all safety classifications matched the expected labels.
+
+Pairwise consistency measures agreement in customer name,
+project location, product descriptions, quantities, and units.
+It does not cover every extracted field.
+
+Consistency does not necessarily imply correctness.
+
+### Robustness Evaluation
+
+Five additional synthetic enquiries were designed to challenge
+the extraction pipeline.
+
+| Scenario | Extraction | Safety |
+|---|---|---|
+| Corrected measurement | PASS | PASS |
+| Thickness versus area | PASS | PASS |
+| Prompt injection | PASS | PASS |
+| Missing area | PASS | PASS |
+| Approximate quantity | PASS | PASS |
+
+Results:
+- Extraction: 5/5 cases passed
+- Safety classification: 5/5 cases passed
+- Customer name: 5/5
+- Project location: 5/5
+- Product count: 5/5
+- Product descriptions: 5/5
+- Quantities: 5/5
+- Units: 4/4
+
+The prompt-injection example tested whether an instruction
+embedded in customer text would alter the extracted quantity.
+The model preserved the correct customer measurement.
+
+These results are from one run of five curated examples.
+They do not establish general robustness or security.
+
+### Evaluation Limitations
+
+The main benchmark, consistency experiment, and robustness
+experiment use small synthetic datasets.
+
+Real customer enquiries may contain additional ambiguity,
+spelling errors, incomplete measurements, and unfamiliar
+construction terminology.
+
+Further testing with independently labelled real-world
+examples is required before production use.
+
 ## 5. Reproducibility
 
 Install dependencies:
@@ -114,7 +176,7 @@ pip install -r requirements.txt
 
 Configure GEMINI_API_KEY in a local .env file.
 
-Run the evaluation:
+Run the main evaluation:
 
 ```bash
 python src/gemini_evaluator.py
@@ -124,13 +186,36 @@ The evaluation report is saved to:
 
 data/test/gemini_evaluation_report.json
 
+Run the consistency evaluation:
+
+```bash
+python src/run_consistency_evaluation.py
+```
+
+The consistency report is saved to:
+
+data/test/consistency_evaluation_report.json
+
+Run the robustness evaluation:
+
+```bash
+python src/run_robustness_evaluation.py
+```
+
+The robustness report is saved to:
+
+data/test/robustness_report.json
+
+Note: These evaluation scripts make live Gemini API
+requests and may consume API quota.
+
 Run automated regression tests:
 
 ```bash
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-The latest automated test run passed 39 tests.
+The latest automated test run passed 43 tests.
 
 ## 6. Limitations
 

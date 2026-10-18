@@ -61,7 +61,7 @@ customer examples. Not intended for production quotations.
 - **Safety checks:** Block missing or invalid quantities, unknown products, and unsupported units; hold enquiries with approximate quantities; flag installation scope for review.
 - **Human approval:** Require a named reviewer and explicit confirmation before approved export.
 - **Exports:** Download approved quotations as JSON or PDF, including review details and approval timestamp.
-- **Automated tests:** A `unittest` suite covering pricing, safety validation, pipeline blocking, PDF export, and Gemini evaluation (39 tests passing as of 17 October 2026).
+- **Automated tests:** A `unittest` suite covering pricing, safety validation, pipeline blocking, PDF export, and Gemini evaluation (43 tests passing as of 18 October 2026).
 
 ## Workflow
 
@@ -119,7 +119,6 @@ The example includes **$20,832.00 subtotal** and **$2,083.20 GST**. These prices
 | ReportLab | Generate approved quotation PDFs |
 | `unittest` | Automated regression tests |
 
-
 ## Model Evaluation
 
 The Gemini extraction pipeline was evaluated using
@@ -141,7 +140,41 @@ decimal quantities, and zero quantities.
 | Product description accuracy | 100% (17/17) |
 | Quantity accuracy | 100% (17/17) |
 | Unit accuracy | 100% (15/15) |
-| Automated regression tests | 39 passed |
+| Automated regression tests | 43 passed |
+
+### Consistency Evaluation
+
+Three construction enquiries were evaluated three times
+each, producing nine Gemini extraction attempts.
+
+| Scenario | Extraction | Safety | Pairwise agreement |
+|---|---|---|---|
+| Standard enquiry | 3/3 | 3/3 | 100% |
+| Approximate quantity | 3/3 | 3/3 | 100% |
+| Missing quantity | 3/3 | 3/3 | 100% |
+
+The consistency evaluation compares customer names,
+project locations, product descriptions, quantities,
+and units across repeated extractions.
+
+### Robustness Evaluation
+
+Five challenging synthetic enquiries were tested.
+
+| Scenario | Extraction | Safety |
+|---|---|---|
+| Corrected measurement | PASS | PASS |
+| Thickness versus area | PASS | PASS |
+| Prompt injection | PASS | PASS |
+| Missing area | PASS | PASS |
+| Approximate quantity | PASS | PASS |
+
+All five enquiries passed the defined extraction
+and safety checks in the recorded evaluation run.
+
+These experiments use small synthetic datasets.
+They do not establish general reliability,
+prompt-injection resistance, or production readiness.
 
 These results represent one evaluation run on a
 small, curated synthetic dataset. They do not
@@ -221,7 +254,7 @@ From the project root, with the environment activated:
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-The suite currently covers PDF export constraints, pipeline safety, calculation validation, and quotation safety rules. The latest locally verified test run passed **39 tests**.
+The suite currently covers PDF export constraints, pipeline safety, calculation validation, and quotation safety rules. The latest locally verified test run passed **43 tests**.
 
 ## Safety, limitations, and next steps
 
