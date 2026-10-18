@@ -19,9 +19,9 @@ import gemini_to_quotation as pipeline
 
 SAMPLE_FILE = (
     PROJECT_ROOT
-    / "data"
-    / "test"
-    / "gemini_enquiry_sample.json"
+    / "tests"
+    / "fixtures"
+    / "enquiry_sample.json"
 )
 
 # 2. Pipeline safety tests

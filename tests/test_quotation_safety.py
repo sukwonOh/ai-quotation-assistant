@@ -13,8 +13,10 @@ CATALOGUE_FILE = (
 )
 
 SAMPLE_FILE = (
-    PROJECT_ROOT / "data" / "test"
-    / "gemini_enquiry_sample.json"
+    PROJECT_ROOT
+    / "tests"
+    / "fixtures"
+    / "enquiry_sample.json"
 )
 
 class TestQuotationSafety(unittest.TestCase):
