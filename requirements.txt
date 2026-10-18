@@ -1,6 +1,6 @@
-google-genai
-pydantic
-python-dotenv
-streamlit
-pandas
-reportlab
+google-genai==2.31.0
+pydantic==2.14.1
+python-dotenv==1.2.4
+streamlit==1.66.0
+pandas==3.0.6
+reportlab==5.0.1

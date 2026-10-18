@@ -157,7 +157,7 @@ def reset_review_state():
     st.session_state.review_details = None
 
     st.session_state["reviewer_name"] = ""
-    st.session_state["reviewer_confirm"] = False
+    st.session_state["reviewe_confirm"] = False
 
 def reset_quotation_state():
     """ Clear quotation and approval information. """

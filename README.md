@@ -30,29 +30,6 @@ Invited viewers must sign in and enter the demo password.
 Prices are synthetic and should not be used for real
 construction quotations.
 
-
-## Live Demo
-
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ai-quotation-assistant-r7zf84qw8sdbpw47t3fqwh.streamlit.app/)
-
-**[Launch AI Quotation Assistant](https://ai-quotation-assistant-r7zf84qw8sdbpw47t3fqwh.streamlit.app/)**
-
-The application is deployed on Streamlit Community Cloud.
-
-This portfolio demonstration includes:
-- Gemini-powered customer enquiry extraction
-- Rule-based quotation safety validation
-- Product catalogue matching
-- Deterministic quotation calculations
-- Human review and approval
-- JSON and PDF quotation export
-
-**Access:** The demo requires a password and may require
-Streamlit viewer permission.
-
-**Disclaimer:** Uses synthetic catalogue prices and fictional
-customer examples. Not intended for production quotations.
-
 ## Features
 
 - **LLM-based extraction:** Extract customer details, project information, product descriptions, quantities, units, and notes from an enquiry using Google Gemini and a Pydantic schema.
@@ -187,24 +164,54 @@ see the full report:
 
 ## Project structure
 
+Key project files and directories:
+
 ```text
 ai-quotation-assistant/
+│
 ├── app/
-│   └── app.py                 # Streamlit application
+│   └── app.py                     # Streamlit application
+│
 ├── data/
-│   └── synthetic/
-│       └── product_catalogue.csv
+│   ├── evaluation/
+│   │   ├── benchmark_cases.json
+│   │   └── robustness_cases.json
+│   ├── raw/
+│   ├── synthetic/
+│   │   └── product_catalogue.csv
+│   └── test/
+│
 ├── src/
-│   ├── catalogue.py           # Catalogue loading and lookup
-│   ├── enquiry_matcher.py     # Match descriptions to catalogue products
-│   ├── gemini_extractor.py    # Structured LLM extraction
-│   ├── quotation_module.py    # Deterministic pricing
-│   ├── quotation_safety.py    # Safety classification and warnings
-│   └── pdf_exporter.py        # Approved PDF generation
-├── tests/                     # Unit and pipeline safety tests
+│   ├── catalogue.py               # Product catalogue
+│   ├── enquiry_matcher.py         # Product matching
+│   ├── gemini_extractor.py         # Gemini structured extraction
+│   ├── quotation_service.py       # Quotation workflow
+│   ├── quotation_module.py        # Pricing calculations
+│   ├── quotation_safety.py        # Safety rules
+│   ├── pdf_exporter.py            # PDF generation
+│   ├── gemini_evaluator.py        # LLM field-level evaluation
+│   ├── consistency_evaluator.py   # Repeated-run comparison
+│   ├── run_consistency_evaluation.py
+│   └── run_robustness_evaluation.py
+│
+├── tests/                          # Automated unit tests
+│
+├── docs/
+│   ├── evaluation.md              # Evaluation report
+│   └── screenshots/               # Application screenshots
+│
+├── .github/
+│   └── workflows/
+│       └── tests.yml              # GitHub Actions CI
+│
+├── .env.example                    # Environment variable template
+├── .gitignore
 ├── requirements.txt
 └── README.md
 ```
+
+Earlier prototype modules are also retained in the src/
+directory.
 
 ## Run locally
 
@@ -230,13 +237,25 @@ ai-quotation-assistant/
    python -m pip install -r requirements.txt
    ```
 
-4. Create a local `.env` file in the project root containing:
+4. Configure environment variables:
 
-   ```dotenv
-   GEMINI_API_KEY=your_gemini_api_key_here
+   Copy the example environment file (Windows CMD):
+
+   ```cmd
+   copy .env.example .env
    ```
 
-   **Never commit your real API key.** `.env` is excluded by `.gitignore`.
+   Open the newly created `.env` file and set:
+
+   ```dotenv
+   GEMINI_API_KEY=your_actual_api_key
+   DEMO_PASSWORD=your_private_demo_password
+   ```
+
+   Replace the placeholder values with your own credentials.
+
+   Never commit `.env` to GitHub. The file is excluded
+   by `.gitignore`.
 
 5. Start the application:
 
